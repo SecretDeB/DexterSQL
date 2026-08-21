@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dextersql"
+version = "1.0.0"
+description = "Dependency-tree-grounded text-to-SQL generation"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "spacy>=3.7,<4",
+    "sqlglot>=25.0",
+    "openai>=1.40",
+    "httpx>=0.27",
+]
+
+[tool.setuptools.packages.find]
+include = ["dextersql*"]

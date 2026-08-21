@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.env
+.env*
+*secret*
+*.key
+
+# local run artifacts — not part of the base code
+config/bird.toml
+results/
+workspace/
+traces/
+*.snapshot

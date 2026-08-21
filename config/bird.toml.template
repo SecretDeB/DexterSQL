@@ -1,0 +1,125 @@
+# DexterSQL pipeline configuration — BIRD dev.
+#
+# These are the exact settings of the validated run (68.99% EX on BIRD dev, 1534
+# questions, with a 120B open-weight model served locally). Copy to bird.toml and
+# replace every <ANGLE_BRACKET> placeholder.
+#
+#   cp config/bird.toml.template config/bird.toml
+#   # edit paths + LLM endpoint
+#   python scripts/run_pipeline.py --config config/bird.toml --few-shot <FEW_SHOTS_JSON>
+#
+# Sampling budgets total 12 candidates per question (4 per generator). Generation,
+# revision, and selection all sample at temperature 0.7 — at temperature 0 the n
+# samples collapse into duplicates and the selection vote becomes meaningless.
+
+[logger]
+print_level = "INFO"
+
+[dataset]
+type = "bird"
+split = "dev"
+root_path = "<DATA_ROOT>"                       # contains dev.json + dev_databases/
+save_path = "<WORK_ROOT>/dataset/bird/dev.snapshot"
+
+# ── embeddings for value retrieval ───────────────────────────────────────────
+[vector_database]
+api_type = "local"
+embedding_model_name_or_path = "Qwen/Qwen3-Embedding-0.6B"
+store_root_path = "<WORK_ROOT>/vector_database/bird/dev"
+embedding_device = "auto"
+use_qwen3_embedding = true
+local_files_only = false
+normalize_embeddings = true
+max_value_length = 100
+lower_meta_data = true
+batch_size = 128
+db_parallel = 1          # serial DB init: parallel init races on the GPU embedder
+column_parallel = 8
+build_backend = "local_index"
+
+# ── 1. value retrieval ───────────────────────────────────────────────────────
+[value_retrieval]
+n_results = 5            # top-k values retrieved per text column
+n_parallel = 4
+query_parallel_per_sample = 8
+backend = "local_index"
+local_index_device = "auto"
+save_path = "<WORK_ROOT>/value_retrieval/bird/dev.snapshot"
+
+[value_retrieval.llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"                     # e.g. http://localhost:8000/v1
+api_key = "<API_KEY>"                           # "dummy" for a local server
+max_tokens = 1024
+temperature = 0.0        # keyword extraction is deterministic
+
+# ── 2. schema linking ────────────────────────────────────────────────────────
+[schema_linking]
+n_parallel = 4
+n_internal_parallel = 3
+save_path = "<RESULTS_ROOT>/schema_linking/bird/dev.snapshot"
+direct_linking_sampling_budget = 4
+reversed_linking_sampling_budget = 4
+value_distance_threshold = 0.02                 # cosine distance; 0.02 <=> 0.98 similarity
+
+[schema_linking.llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 2048
+temperature = 0.7
+
+# ── 3. SQL generation (dc | icl | dep_tree) ──────────────────────────────────
+[sql_generation]
+n_parallel = 4
+n_internal_parallel = 3
+save_path = "<RESULTS_ROOT>/sql_generation/bird/dev.snapshot"
+dc_sampling_budget = 4
+skeleton_sampling_budget = 4                    # this budget drives dep_tree
+icl_sampling_budget = 4
+icl_few_shot_examples_path = "<FEW_SHOTS_JSON>"
+
+[sql_generation.llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 2048
+temperature = 0.7
+
+# ── 4. revision ──────────────────────────────────────────────────────────────
+[sql_revision]
+n_parallel = 4
+n_internal_parallel = 8
+save_path = "<RESULTS_ROOT>/sql_revision/bird/dev.snapshot"
+checker_sampling_budget = 3
+
+[sql_revision.llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 2048
+temperature = 0.7
+
+# ── 5. selection ─────────────────────────────────────────────────────────────
+[sql_selection]
+n_parallel = 4
+n_internal_parallel = 4
+save_path = "<RESULTS_ROOT>/sql_selection/bird/dev.snapshot"
+filter_top_k_sql = 2                            # adjudicate the top-2 candidates
+evaluator_sampling_budget = 5
+shortcut_consistency_score_threshold = 0.6      # skip the vote above this confidence
+
+[sql_selection.llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 6000        # selection reasons over full result sets; 2048 truncates
+temperature = 0.7
+
+[llm_extractor]
+max_retry = 5

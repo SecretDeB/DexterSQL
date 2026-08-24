@@ -4,9 +4,9 @@
 
 Anik Pramanik, Murat Kantarcioglu, Vincent Oria, Shantanu Sharma
 
-![DexterSQL paper figure](assets/figures.png)
+[Paper on arXiv](https://arxiv.org/pdf/2608.11889)
 
-[View the figure as a PDF](assets/Figures.pdf)
+![DexterSQL paper figure](assets/figures.png)
 
 ## Abstract
 
@@ -96,4 +96,3 @@ config/bird.toml.template
 ```
 
 Copy it to `config/bird.toml`, then update the dataset, workspace, model, and credential settings for your environment.
-

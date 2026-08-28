@@ -1,0 +1,83 @@
+# Rule Creator config template.
+#
+# Copy to config/rule_creator.toml and fill in the placeholders. This
+# pipeline reads ONLY BIRD *training* data -- train_json_path and
+# train_databases_root below are the only data paths in this file, and
+# there is no dev/test path anywhere in this pipeline's config on purpose.
+#
+# Run with:
+#   python -m dextersql.rule_creator.pipeline --config config/rule_creator.toml
+#   python -m dextersql.rule_creator.pipeline --config config/rule_creator.toml --start-step 3   # resume
+
+[data]
+train_json_path = "<TRAIN_ROOT>/train.json"                    # BIRD train.json: [{question_id?, db_id, question, evidence, SQL, difficulty?}, ...]
+train_databases_root = "<TRAIN_ROOT>/train_databases"          # one subfolder per db_id, each holding <db_id>.sqlite
+output_dir = "<WORK_ROOT>/rule_creator_output"                 # every step's checkpoint/output file goes here
+
+# ── Step 1a: stratified sampling ─────────────────────────────────────────────
+[sampling]
+target_size = 300           # total training questions to sample
+seed = 42
+simple_fraction = 0.40
+moderate_fraction = 0.35
+challenging_fraction = 0.25
+
+# ── Step 1: error mining (candidate generation + execution + explanation) ───
+[error_mining]
+candidates_per_question = 4   # candidate SQLs sampled per question
+n_parallel = 4                # questions processed concurrently
+execution_timeout = 30        # seconds
+
+[error_mining.generation_llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 2048
+temperature = 0.9              # higher temperature: candidates need to be diverse to surface varied failure modes
+
+[error_mining.explanation_llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 4096
+temperature = 0.3               # lower temperature: explanations should be precise, not creative
+
+# ── Step 2: database-agnostic error isolation ────────────────────────────────
+[db_agnostic_filter]
+n_parallel = 8
+
+[db_agnostic_filter.llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 2048
+temperature = 0.3
+
+# ── Step 3: clustering ────────────────────────────────────────────────────────
+[clustering]
+batch_size = 15                    # explanations per batch-level clustering call, within one database
+cross_db_merge_chunk_size = 20     # groups per merge call -- keep this well under the model's comfortable reasoning budget
+min_group_support = 3              # groups smaller than this are discarded as non-dominant
+
+[clustering.llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 10000            # clustering/merge calls need room for the model's own <reasoning> over many items -- see clustering.py's docstring
+temperature = 0.3
+
+# ── Step 4: rule synthesis ────────────────────────────────────────────────────
+[rule_synthesis]
+max_examples_per_rule = 6     # representative member explanations shown per group, to keep the synthesis prompt bounded
+
+[rule_synthesis.llm]
+model = "<MODEL_ID>"
+api_type = "openai"
+base_url = "<LLM_BASE_URL>"
+api_key = "<API_KEY>"
+max_tokens = 4096
+temperature = 0.3

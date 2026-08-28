@@ -1,0 +1,22 @@
+{
+  "db_id": "thrombosis_prediction",
+  "notes": [
+    {
+      "columns": [
+        "Examination.Diagnosis",
+        "Patient.Diagnosis"
+      ],
+      "verdict": "overlapping",
+      "col_a_purpose": "records the diagnosis(s) noted for a specific examination (event), which may be null or list multiple conditions observed at that visit.",
+      "col_b_purpose": "stores each patient\u2019s overall (master) diagnosis and is populated for every patient.",
+      "use_a_when": "when the query asks about diagnoses recorded during a particular exam or visit.",
+      "use_b_when": "when the query asks about a patient\u2019s primary or overall diagnosis.",
+      "sql_note": "Join Examination to Patient on ID only if you need per\u2011visit diagnoses; otherwise query Patient.Diagnosis directly for the patient\u2019s main condition.",
+      "caution": null,
+      "pitfalls": [
+        "Examination.Diagnosis has many nulls, so joining can unintentionally exclude patients without an exam record.",
+        "Values often differ in case or contain multiple comma\u2011separated conditions, so exact string matches may miss related diagnoses."
+      ]
+    }
+  ]
+}

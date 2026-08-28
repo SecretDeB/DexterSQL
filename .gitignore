@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+
+# macOS AppleDouble resource forks
+._*
+
+*.env
+.env*
+*secret*
+*.key
+
+# Python build/venv artifacts
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# local run artifacts — not part of the base code
+config/bird.toml
+results/
+workspace/
+traces/
+*.snapshot
